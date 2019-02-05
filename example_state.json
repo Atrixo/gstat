@@ -1,0 +1,9 @@
+{
+    "Levels": [
+        {
+            "rms": 7,
+            "peak": 4,
+            "whatever": 42 
+        }
+    ]
+}
