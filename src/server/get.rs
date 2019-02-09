@@ -7,22 +7,45 @@ use timeout_io::Writer;
 
 
 /// The site template
-const SITE_TEMPLATE: &'static str = include_str!("site.template.html");
+const SITE: &'static str = include_str!("site.html");
 
 
 /// Handles a get request
-pub fn handle(_header: RequestHeader, mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
-	// Build HTML site
-	let state = PipelineMessage::get();
-	let html = SITE_TEMPLATE.replace("$PLACEHOLDER$", &format!("{:#?}", state));
+pub fn handle(header: RequestHeader, stream: TcpStream) -> Result<(), Box<dyn Error>> {
+	// Check if the state was requested
+	match header.path.as_str() {
+		"/state.json" => deliver_state(stream),
+		_ => deliver_html(stream)
+	}
+}
+
+
+/// Delivers the current state as JSON
+fn deliver_state(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
+	// Encode state
+	let state_json = serde_json::to_string(&PipelineMessage::get())?;
 	
-	// Write response header
+	// Write state
 	stream.write_response_header(&format!(
 		concat!(
 			"HTTP/1.1 200 Ok\r\n",
 			"Content-Type: text/html\r\n",
 			"Content-Length: {}\r\n\r\n"
-		), html.len()
+		), state_json.len()
 	))?;
-	Ok(stream.write_exact(html.as_bytes(), TIMEOUT)?)
+	Ok(stream.write_exact(state_json.as_bytes(), TIMEOUT)?)
+}
+
+
+/// Delivers the HTML page
+fn deliver_html(mut stream: TcpStream) -> Result<(), Box<dyn Error>> {
+	// Write HTML
+	stream.write_response_header(&format!(
+		concat!(
+			"HTTP/1.1 200 Ok\r\n",
+			"Content-Type: text/html\r\n",
+			"Content-Length: {}\r\n\r\n"
+		), SITE.len()
+	))?;
+	Ok(stream.write_exact(SITE.as_bytes(), TIMEOUT)?)
 }
